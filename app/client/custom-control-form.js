@@ -7,7 +7,7 @@ export class CustomControlForm extends HTMLElement {
     this.formData = formData || {};
     this._ = this.attachShadow({mode: 'open'});
     this._.innerHTML = /*html*/`
-      <style>@import url("/milligram.css");
+      <style>@import url("/.showroom-app/milligram.css");
         input[type='email'], input[type='number'], input[type='password'], input[type='search'], input[type='tel'], input[type='text'], input[type='url'], button, textarea, select {
           width: auto;
           margin: 0;
@@ -60,6 +60,7 @@ export class CustomControlForm extends HTMLElement {
         const wrapper = document.createElement('div');
         wrapper.classList.add('input-control');
         let input = document.createElement('input');
+        input.setAttribute('data-target-property', prop);
         switch (true) {
           case typeof type === 'number': 
             input.setAttribute('type', 'number');
@@ -116,6 +117,7 @@ export class CustomControlForm extends HTMLElement {
         const value = attributes[attr];
         const input = document.createElement('input');
         input.type = 'text';
+        input.setAttribute('data-target-attribute', attr);
         input.value = value;
         const label = document.createElement('label');
         label.innerText = attr;

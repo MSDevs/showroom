@@ -2,6 +2,7 @@
 
 const path = require('path');
 const Koa = require('koa');
+const mount = require('koa-mount');
 const serve = require('koa-static');
 const yargs = require('yargs');
 const { search, getComponents } = require('./build-component-index');
@@ -11,32 +12,61 @@ const { promisify } = require('util');
 
 const lstat = promisify(fs.lstat);
 
+const backend = new Koa();
+const frontend = new Koa();
 const app = new Koa();
+let koaServer;
 
-yargs
+const serveStaticOptions = {
+  hidden: true,
+  cacheControl: false
+};
+
+let { log } = console;
+
+if (require.main === module) {
+  yargs
   .usage('$0 [--path] [--port]', '', (yargs) => {}, (argv) => {
         global.showroom = {
           verbose: argv.verbose,
+          silent: false,
           port: argv.port,
           path: argv.path
         };
-        preflight()
-          .then(() => console.log(chalk.green('Starting server')))
-          .then(() => startServer())
-          .then(() => app.listen(argv.port));
+        bootstrap({
+          port: argv.port,
+          path: argv.path
+        });
     })
   .default('port', '3000')
   .default('path', './')
   .help()
   .argv;
+}
+
+async function bootstrap ({port = 3000, path = './', silent = false}) {
+  global.showroom = Object.assign(global.showroom || {},
+    {
+      path,
+      port,
+      silent
+    });
+  if (silent) {
+    log = () => {};
+  }
+  await preflight();
+  log(chalk.green('Starting server'));
+  await startServer();
+  koaServer = app.listen(port);
+}
 
 async function preflight () {
   const parentDir = path.resolve(process.cwd(), global.showroom.path);
   const dir = path.resolve(process.cwd(), global.showroom.path, '.showroom');
   if (fs.existsSync(dir) && (await lstat(dir)).isDirectory()) {
-    console.log(`.showroom folder located`);
+    log(`.showroom folder located`);
   } else {
-    console.log(chalk.red(`Could not locate .showroom folder in ${parentDir}`));
+    log(chalk.red(`Could not locate .showroom folder in ${parentDir}`));
     process.exit(-1);
   }
 }
@@ -50,19 +80,18 @@ async function startServer () {
     dir('milligram'),
     dir('slim-js'),
     global.showroom.path,
-    
   ];
 
-  console.log('Expecting Showroom files to be at', global.showroom.path + '/.showroom')
+  log('Expecting Showroom files to be at', global.showroom.path + '/.showroom')
   await search(path.resolve(process.cwd(), global.showroom.path, '.showroom'));
 
 
   allowedPaths.forEach(path => {
-    app.use(serve(path, {hidden: true, cacheControl: false}));
+    frontend.use(serve(path, serveStaticOptions));
   });
 
-  app.use(async (ctx, next) => {
-    if (ctx.path === '/showroom-config') {
+  backend.use(async (ctx, next) => {
+    if (ctx.path === '/.showroom-app/showroom-config') {
       const cfgPath = path.resolve(process.cwd(), global.showroom.path, '.showroom', 'config.js');
       ctx.set('Content-Type', 'application/javascript; charset=utf-8');
       if (fs.existsSync(cfgPath)) {
@@ -83,14 +112,33 @@ async function startServer () {
     }
   });
 
-  app.use(async (ctx, next) => {
-    if (ctx.path === '/showroom-components') {
+  backend.use(async (ctx, next) => {
+    if (ctx.path === '/index.html' || ctx.path === '/') {
+      ctx.redirect('/.showroom-app/index.html');
+    } else {
+      next();
+    }
+  });
+
+  backend.use(async (ctx, next) => {
+    if (ctx.path === '/.showroom-app/showroom-components') {
       ctx.body = getComponents();
     } else {
       await next();
     }
   });
+
+  // attempt serving static files by path priority
+  app.use(mount('/.showroom-app', frontend));
+  app.use(mount('/', frontend));
+
+  // attempt serving backend files
+  app.use(mount('/', backend));
+  
   return true;
 }
 
-
+module.exports = {
+  bootstrap,
+  server: () => koaServer
+};
