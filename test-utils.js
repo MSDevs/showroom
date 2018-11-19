@@ -140,6 +140,12 @@ class TestUtils {
       const textContent = await resolvedTarget.getProperty('textContent');
       return textContent.jsonValue();
   }
+
+  async trigger (fnName) {
+    await this.page.evaluate((fnName) => {
+      dashboard.trigger(fnName);
+    }, fnName);
+  }
 }
 
 /**

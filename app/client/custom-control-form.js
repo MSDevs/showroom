@@ -1,11 +1,11 @@
 export class CustomControlForm extends HTMLElement {
 
-  constructor (targetComponent, formData, isNested = false) {
+  constructor (targetComponent, formData) {
     super();
-    this.isNested = isNested;
     this.targetComponent = targetComponent;
     this.formData = formData || {};
     this._ = this.attachShadow({mode: 'open'});
+    this.triggers = {};
     this._.innerHTML = /*html*/`
       <style>@import url("/.showroom-app/milligram.css");
         input[type='email'], input[type='number'], input[type='password'], input[type='search'], input[type='tel'], input[type='text'], input[type='url'], button, textarea, select {
@@ -48,13 +48,11 @@ export class CustomControlForm extends HTMLElement {
       this._.appendChild(document.createElement('br'));
     }
     const { targetComponent, formData } = this;
-    const { properties, attributes } = formData;
+    const { properties, attributes, functions } = formData;
     if (properties) {
-      if (!this.isNested) {
-        const h = document.createElement('h6');
-        h.innerText = 'Properties';
-        this._.appendChild(h);
-      }
+      const h = document.createElement('h6');
+      h.innerText = 'Properties';
+      this._.appendChild(h);
       Object.keys(properties).forEach(prop => {
         const type = properties[prop];
         const wrapper = document.createElement('div');
@@ -136,6 +134,26 @@ export class CustomControlForm extends HTMLElement {
             targetComponent.removeAttribute(attr);
           }
         })
+      });
+    }
+    if (functions) {
+      const h = document.createElement('h6');
+      h.innerText = 'Functions';
+      this._.appendChild(h);
+      Object.keys(functions).forEach(fnName => {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('input-control');
+        const btn = document.createElement('button');
+        const label = document.createElement('label');
+        label.innerText = fnName;
+        btn.innerText = 'Invoke';
+        wrapper.appendChild(label);
+        wrapper.appendChild(btn);
+        this._.appendChild(wrapper);
+        this.triggers[fnName] = () => {
+          functions[fnName]();
+        };
+        btn.onclick = this.triggers[fnName];
       });
     }
   }

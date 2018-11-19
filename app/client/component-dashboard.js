@@ -21,6 +21,12 @@ export default class ComponentDashboard extends HTMLElement {
     window.dashboard = this;
   }
 
+  trigger (fnName) {
+    if (fnName && this.customControlForm) {
+      this.customControlForm.triggers[fnName]();
+    }
+  }
+
   get lastEvent () {
     return this.events[this.events.length - 1];
   }
@@ -170,7 +176,8 @@ export default class ComponentDashboard extends HTMLElement {
   addCustomForm (formData) {
     this.dashboard.innerHTML = null;
     const targetComponent = this.renderer.component;
-    this.dashboard.appendChild(new CustomControlForm(targetComponent, formData));
+    this.customControlForm = new CustomControlForm(targetComponent, formData)
+    this.dashboard.appendChild(this.customControlForm);
   }
 
   attachEvents (target, eventList) {
@@ -255,7 +262,7 @@ export default class ComponentDashboard extends HTMLElement {
 
   setupComponent (module) {
     this.componentModule = module;
-    const { component, properties, attributes, events, innerHTML, outerHTML, centered, extends : isExtending } = module;
+    const { functions, component, properties, attributes, events, innerHTML, outerHTML, centered, extends : isExtending } = module;
     if (centered) {
       this.setAttribute('center', '');
     } else {
@@ -273,7 +280,7 @@ export default class ComponentDashboard extends HTMLElement {
       throw new Error('Something bad happened');
     }
     this.targetComponent = this.renderer.component;
-    this.addCustomForm({properties, attributes});
+    this.addCustomForm({properties, attributes, functions});
     this.addInnerHTMLForm(innerHTML);
     this.addOuterHTMLForm(outerHTML);
     requestAnimationFrame( () => {
