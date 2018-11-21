@@ -126,11 +126,13 @@ class TestUtils {
 
   async isVisible (target) {
       const resolvedTarget = target || this.targetComponent;
-
-      return this.page.evaluate(async (target) => {
+    
+      const isIntersectingViewport = await resolvedTarget.isIntersectingViewport();
+      const isNotHidden = await this.page.evaluate(async (target) => {
           const style = getComputedStyle(target);
           return style && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
       }, resolvedTarget);
+      return isIntersectingViewport && isNotHidden;
   }
 
   async getTextContent(target) {
